@@ -1,0 +1,1366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GranthDesk Pro — Smart Study Library OS</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#10b981', 600: '#059669' },
+            darkBg: '#0b1120',
+            cardBg: '#131d33',
+            borderClr: '#1e293b'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b1120; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    @media print {
+      body * { visibility: hidden; }
+      #printableReceipt, #printableReceipt * { visibility: visible; }
+      #printableReceipt { position: absolute; left: 0; top: 0; width: 100%; }
+    }
+  </style>
+</head>
+<body class="bg-[#0b1120] text-slate-100 min-h-screen font-sans antialiased">
+
+  <!-- TOP HEADER -->
+  <header class="border-b border-[#1e293b] bg-[#131d33]/90 backdrop-blur sticky top-0 z-30 px-4 lg:px-8 py-3">
+    <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold text-xl shadow-inner">
+          <i class="fa-solid fa-graduation-cap"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 id="headerLibName" class="text-lg font-bold text-white tracking-wide">digital study hub</h1>
+            <span id="syncStatusBadge" class="text-[10px] bg-slate-800 text-slate-400 border border-slate-700 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+              <i class="fa-solid fa-cloud"></i> Ready
+            </span>
+          </div>
+          <p id="headerLibAddress" class="text-xs text-slate-400">pashurampur</p>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button onclick="syncWithGoogleSheet(true)" class="bg-[#1e293b] hover:bg-slate-700 text-emerald-400 border border-emerald-500/30 text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-all shadow-sm" title="Sync Sheet">
+          <i class="fa-solid fa-arrows-rotate" id="syncSpinner"></i> <span>Sync Sheet</span>
+        </button>
+        <button onclick="openAdmissionModal()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs md:text-sm px-4 py-2 rounded-lg shadow-md flex items-center gap-2 transition-all">
+          <i class="fa-solid fa-user-plus"></i> New Admission
+        </button>
+        <button onclick="openFeeRecordModal()" class="bg-[#1e293b] hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs md:text-sm px-3.5 py-2 rounded-lg flex items-center gap-2 transition-all">
+          <i class="fa-solid fa-indian-rupee-sign text-emerald-400"></i> Record Fee
+        </button>
+        <button onclick="openSettingsModal()" class="bg-[#1e293b] hover:bg-slate-700 text-slate-300 p-2.5 rounded-lg border border-slate-700 transition-all" title="Settings & Excel Backup">
+          <i class="fa-solid fa-gear"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 lg:px-8 py-6 space-y-6">
+
+    <!-- KPI / STATS -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-3 lg:gap-4">
+      <div class="bg-[#131d33] border border-[#1e293b] rounded-xl p-3.5 flex flex-col justify-between shadow-sm">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium">
+          <span>TODAY'S COLLECTION</span>
+          <i class="fa-solid fa-wallet text-emerald-400"></i>
+        </div>
+        <div class="mt-2">
+          <div class="text-xl lg:text-2xl font-bold text-white tracking-tight" id="statTodayCollection">₹0</div>
+          <div class="text-[11px] text-slate-400 mt-1 flex justify-between">
+            <span>Cash: <b id="statTodayCash" class="text-emerald-400">₹0</b></span>
+            <span>UPI: <b id="statTodayUpi" class="text-teal-400">₹0</b></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-[#131d33] border border-[#1e293b] rounded-xl p-3.5 flex flex-col justify-between shadow-sm">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium">
+          <span>MARKET DUES (PENDING)</span>
+          <i class="fa-solid fa-clock-rotate-left text-amber-400"></i>
+        </div>
+        <div class="mt-2">
+          <div class="text-xl lg:text-2xl font-bold text-amber-400 tracking-tight" id="statPendingDues">₹0</div>
+          <div class="text-[11px] text-slate-400 mt-1 flex items-center justify-between">
+            <span id="statDueCount">0 Students Due</span>
+            <button onclick="switchTab('students'); filterByStatus('due');" class="text-[10px] text-amber-300 underline font-medium">Notify</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MONTHLY RECEIVED PAYMENT CARD -->
+      <div class="bg-[#131d33] border border-[#1e293b] rounded-xl p-3.5 flex flex-col justify-between shadow-sm">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium">
+          <span>MONTHLY RECEIVED</span>
+          <i class="fa-solid fa-hand-holding-dollar text-emerald-400"></i>
+        </div>
+        <div class="mt-2">
+          <div class="text-xl lg:text-2xl font-bold text-emerald-400 tracking-tight" id="statMonthlyCollection">₹0</div>
+          <div class="text-[11px] text-slate-400 mt-1 flex justify-between">
+            <span>Total Recd (This Month)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-[#131d33] border border-[#1e293b] rounded-xl p-3.5 flex flex-col justify-between shadow-sm">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium">
+          <span>KYC STATUS</span>
+          <i class="fa-solid fa-id-card text-purple-400"></i>
+        </div>
+        <div class="mt-2">
+          <div class="text-xl lg:text-2xl font-bold text-white tracking-tight">
+            <span id="statKycDone">0</span> <span class="text-xs font-normal text-rose-400" id="statKycPendingTag">(0 Not KYC)</span>
+          </div>
+          <div class="text-[11px] text-slate-400 mt-1">
+            <button onclick="switchTab('students'); filterByStatus('not_kyc');" class="text-rose-400 underline font-medium">View Pending</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-[#131d33] border border-[#1e293b] rounded-xl p-3.5 flex flex-col justify-between col-span-2 md:col-span-1 shadow-sm">
+        <div class="flex items-center justify-between text-xs text-slate-400 font-medium">
+          <span>AVAILABLE SEATS</span>
+          <i class="fa-solid fa-chair text-emerald-400"></i>
+        </div>
+        <div class="mt-2">
+          <div class="text-xl lg:text-2xl font-bold text-emerald-400 tracking-tight">
+            <span id="statVacantSeats">0</span> <span class="text-xs font-normal text-slate-400">/ <span id="statTotalSeats">32</span> Total</span>
+          </div>
+          <div class="w-full bg-slate-800 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div id="statSeatProgressBar" class="bg-emerald-500 h-full rounded-full transition-all" style="width: 50%;"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div class="flex flex-wrap items-center justify-between border-b border-[#1e293b] pb-2 gap-3">
+      <div class="flex items-center gap-2">
+        <button onclick="switchTab('seat_layout')" id="tabBtnSeatLayout" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-2">
+          <i class="fa-solid fa-shapes"></i> Visual Seat Layout
+        </button>
+        <button onclick="switchTab('students')" id="tabBtnStudents" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white flex items-center gap-2">
+          <i class="fa-solid fa-address-book"></i> Student Directory
+        </button>
+        <button onclick="switchTab('ledger')" id="tabBtnLedger" class="px-4 py-2 rounded-lg text-sm font-medium transition-all text-slate-400 hover:text-white flex items-center gap-2">
+          <i class="fa-solid fa-receipt"></i> Daily Ledger
+        </button>
+      </div>
+
+      <div class="relative w-full sm:w-64">
+        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-xs text-slate-400"></i>
+        <input type="text" id="searchInput" oninput="handleSearch(this.value)" placeholder="Search Name, Seat, Mobile..." class="w-full bg-[#131d33] border border-[#1e293b] text-xs text-white pl-8 pr-3 py-2 rounded-lg focus:outline-none focus:border-emerald-500">
+      </div>
+    </div>
+
+    <!-- VIEW 1: SEAT GRID -->
+    <section id="viewSeatLayout" class="space-y-4">
+      <div class="bg-[#131d33] border border-[#1e293b] rounded-xl p-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-1.5 bg-[#0b1120] p-1 rounded-lg border border-[#1e293b]">
+          <span class="text-xs font-semibold text-slate-400 px-2">SHIFT:</span>
+          <button onclick="setShiftFilter('Morning')" id="shiftBtnMorning" class="px-3 py-1 text-xs rounded font-medium bg-emerald-600 text-white transition-all">Morning (6AM - 2PM)</button>
+          <button onclick="setShiftFilter('Evening')" id="shiftBtnEvening" class="px-3 py-1 text-xs rounded font-medium text-slate-400 hover:text-white transition-all">Evening (2PM - 10PM)</button>
+          <button onclick="setShiftFilter('Night')" id="shiftBtnNight" class="px-3 py-1 text-xs rounded font-medium text-slate-400 hover:text-white transition-all">Night (10PM - 6AM)</button>
+          <button onclick="setShiftFilter('FullDay')" id="shiftBtnFullDay" class="px-3 py-1 text-xs rounded font-medium text-slate-400 hover:text-white transition-all">Full Day (24 Hrs)</button>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button onclick="setSeatStatusFilter('all')" id="seatFilterAll" class="px-3 py-1 rounded text-xs font-semibold bg-slate-700 text-white ring-2 ring-emerald-400">
+            All Seats (<span id="countFilterAll">0</span>)
+          </button>
+          <button onclick="setSeatStatusFilter('vacant')" id="seatFilterVacant" class="px-3 py-1 rounded text-xs font-medium text-emerald-400 bg-emerald-950/40 border border-emerald-800/40 hover:bg-emerald-900/50">
+            🟢 Khali Seats (<span id="countFilterVacant">0</span>)
+          </button>
+          <button onclick="setSeatStatusFilter('booked')" id="seatFilterBooked" class="px-3 py-1 rounded text-xs font-medium text-rose-400 bg-rose-950/40 border border-rose-800/40 hover:bg-rose-900/50">
+            🔴 Booked Seats (<span id="countFilterBooked">0</span>)
+          </button>
+          <button onclick="setSeatStatusFilter('due')" id="seatFilterDue" class="px-3 py-1 rounded text-xs font-medium text-amber-400 bg-amber-950/40 border border-amber-800/40 hover:bg-amber-900/50">
+            🟡 Due Alert (<span id="countFilterDue">0</span>)
+          </button>
+        </div>
+      </div>
+
+      <div id="seatGridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3"></div>
+    </section>
+
+    <!-- VIEW 2: STUDENT DIRECTORY -->
+    <section id="viewStudents" class="hidden space-y-4">
+      <div class="bg-[#131d33] border border-[#1e293b] rounded-xl overflow-hidden shadow">
+        <div class="p-4 border-b border-[#1e293b] flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 class="text-sm font-bold text-white tracking-wide">Registered Student Directory</h2>
+            <p class="text-xs text-slate-400">Live Synchronized with Google Sheets</p>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button onclick="filterByStatus('all')" id="filterDirAll" class="px-2.5 py-1 text-xs rounded bg-slate-700 text-white font-medium">All</button>
+            <button onclick="filterByStatus('kyc_verified')" id="filterDirKyc" class="px-2.5 py-1 text-xs rounded bg-[#1e293b] text-slate-400 hover:text-white">KYC Verified</button>
+            <button onclick="filterByStatus('not_kyc')" id="filterDirNotKyc" class="px-2.5 py-1 text-xs rounded bg-rose-950/60 text-rose-400 border border-rose-800/50">Not KYC</button>
+            <button onclick="filterByStatus('due')" id="filterDirDue" class="px-2.5 py-1 text-xs rounded bg-amber-950/60 text-amber-400 border border-amber-800/50">Fee Due</button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-[#0b1120]/60 text-slate-400 uppercase tracking-wider text-[11px] border-b border-[#1e293b]">
+                <th class="py-3 px-4 font-semibold">Student</th>
+                <th class="py-3 px-4 font-semibold">Phone</th>
+                <th class="py-3 px-4 font-semibold">Aadhaar (KYC)</th>
+                <th class="py-3 px-4 font-semibold">Plan & Seat</th>
+                <th class="py-3 px-4 font-semibold">Fee / Paid / Due</th>
+                <th class="py-3 px-4 font-semibold">Validity End</th>
+                <th class="py-3 px-4 font-semibold">Status</th>
+                <th class="py-3 px-4 font-semibold text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="studentTableBody" class="divide-y divide-[#1e293b] text-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIEW 3: LEDGER -->
+    <section id="viewLedger" class="hidden space-y-4">
+      <div class="bg-[#131d33] border border-[#1e293b] rounded-xl overflow-hidden shadow">
+        <div class="p-4 border-b border-[#1e293b]">
+          <h2 class="text-sm font-bold text-white">Daily Cash & UPI Ledger</h2>
+          <p class="text-xs text-slate-400">Real-time daily collection entries.</p>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="bg-[#0b1120]/60 text-slate-400 uppercase tracking-wider text-[11px] border-b border-[#1e293b]">
+                <th class="py-3 px-4">Date & Time</th>
+                <th class="py-3 px-4">Student</th>
+                <th class="py-3 px-4">Seat / Details</th>
+                <th class="py-3 px-4">Payment Mode</th>
+                <th class="py-3 px-4">Amount</th>
+                <th class="py-3 px-4 text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerTableBody" class="divide-y divide-[#1e293b] text-slate-200"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ==================== SETTINGS MODAL ==================== -->
+  <div id="modalSettings" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#131d33] border border-[#1e293b] rounded-xl w-full max-w-lg overflow-hidden shadow-2xl">
+      <div class="p-4 border-b border-[#1e293b] flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-gear text-slate-400"></i>
+          <h3 class="text-sm font-bold text-white">Library Setup & Excel Backups</h3>
+        </div>
+        <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="p-4 space-y-4 text-xs max-h-[80vh] overflow-y-auto">
+        <div>
+          <label class="block text-slate-400 mb-1">Library Name *</label>
+          <input type="text" id="cfgLibName" class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1">Branch Location</label>
+            <input type="text" id="cfgLibAddress" class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Owner Contact Phone</label>
+            <input type="text" id="cfgLibPhone" class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Owner UPI ID (For WhatsApp reminders)</label>
+          <input type="text" id="cfgLibUpi" class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div class="p-3 bg-[#0b1120] rounded-lg border border-[#1e293b] flex items-center justify-between">
+          <span class="font-semibold text-slate-200">Total Cabin Seats Capacity:</span>
+          <div class="flex items-center gap-2">
+            <button onclick="adjustSeatCapacity(-1)" class="w-8 h-8 bg-slate-800 hover:bg-slate-700 text-white rounded font-bold text-base border border-slate-700">-</button>
+            <span id="cfgSeatDisplay" class="font-bold text-emerald-400 text-base w-10 text-center">32</span>
+            <button onclick="adjustSeatCapacity(1)" class="w-8 h-8 bg-slate-800 hover:bg-slate-700 text-white rounded font-bold text-base border border-slate-700">+</button>
+          </div>
+        </div>
+
+        <!-- EXCEL BACKUP & RESTORE SECTION (.xlsx) -->
+        <div class="p-3 bg-[#0b1120] rounded-lg border border-[#1e293b] space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-semibold text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-file-excel text-emerald-400"></i> Excel File Backup & Restore (.xlsx)</span>
+            <span class="text-[10px] text-slate-400">100% Offline Safe</span>
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button type="button" onclick="downloadExcelBackup()" class="flex-1 bg-emerald-700 hover:bg-emerald-600 text-white py-2 rounded text-xs font-semibold flex items-center justify-center gap-1.5 shadow transition-all">
+              <i class="fa-solid fa-download"></i> Download Excel (.xlsx)
+            </button>
+            <label class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded text-xs font-medium flex items-center justify-center gap-1.5 border border-slate-700 cursor-pointer transition-all">
+              <i class="fa-solid fa-upload"></i> Restore Excel File
+              <input type="file" id="restoreExcelInput" accept=".xlsx,.xls,.json" onchange="restoreExcelBackup(event)" class="hidden">
+            </label>
+          </div>
+        </div>
+
+        <button onclick="saveLibrarySettings()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg text-xs shadow-lg transition-all">
+          Save Settings & Sync
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADMISSION MODAL -->
+  <div id="modalAdmission" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#131d33] border border-[#1e293b] rounded-xl w-full max-w-lg overflow-hidden shadow-2xl">
+      <div class="p-4 border-b border-[#1e293b] flex items-center justify-between">
+        <h3 class="text-sm font-bold text-white"><i class="fa-solid fa-user-plus text-emerald-400 mr-2"></i>New Student Admission</h3>
+        <button onclick="closeAdmissionModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form id="formAdmission" onsubmit="handleAdmissionSubmit(event)" class="p-5 space-y-3 text-xs">
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1">Full Name *</label>
+            <input type="text" id="admName" required class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Target Exam</label>
+            <input type="text" id="admExam" placeholder="e.g. UPPSC, SSC" class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1">Mobile Number (10 Digits) *</label>
+            <input type="tel" id="admPhone" required pattern="[0-9]{10}" class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Aadhaar Card (12 Digits - Optional)</label>
+            <input type="text" id="admAadhaar" maxlength="12" placeholder="12 Digit Aadhaar" class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white font-mono focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1">Shift *</label>
+            <select id="admShift" onchange="populateAvailableSeatsDropdown()" class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+              <option value="Morning">Morning (6 AM - 2 PM)</option>
+              <option value="Evening">Evening (2 PM - 10 PM)</option>
+              <option value="Night">Night (10 PM - 6 AM)</option>
+              <option value="FullDay">Full Day (24 Hours)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Seat Cabin *</label>
+            <select id="admSeat" required class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500"></select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-slate-400 mb-1">Plan Duration</label>
+            <select id="admPlan" class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+              <option value="1">1 Month</option>
+              <option value="3">3 Months (Offer)</option>
+              <option value="6">6 Months</option>
+              <option value="12">1 Year</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Joining Date</label>
+            <input type="date" id="admJoiningDate" required class="w-full bg-[#0b1120] border border-[#1e293b] rounded-lg px-3 py-2 text-white focus:outline-none focus:border-emerald-500">
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-2 bg-[#0b1120] p-2.5 rounded-lg border border-[#1e293b]">
+          <div>
+            <label class="block text-slate-400 mb-1">Fee (₹)</label>
+            <input type="number" id="admTotalFee" placeholder="Enter Fee" class="w-full bg-[#131d33] border border-slate-700 rounded px-2 py-1 text-white">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Paid (₹)</label>
+            <input type="number" id="admPaidAmount" placeholder="Enter Paid" class="w-full bg-[#131d33] border border-slate-700 rounded px-2 py-1 text-emerald-400 font-bold">
+          </div>
+          <div>
+            <label class="block text-slate-400 mb-1">Mode</label>
+            <select id="admPayMode" class="w-full bg-[#131d33] border border-slate-700 rounded px-2 py-1 text-white">
+              <option value="Cash">Cash</option>
+              <option value="UPI">UPI</option>
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg shadow-lg text-xs transition-all">
+          Confirm Admission & Save Live
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- KYC VERIFICATION MODAL -->
+  <div id="modalKycVerify" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#131d33] border border-[#1e293b] rounded-xl w-full max-w-sm p-4 space-y-3 text-xs shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#1e293b] pb-2">
+        <h3 class="font-bold text-white"><i class="fa-solid fa-id-card text-purple-400 mr-1.5"></i>Complete Student KYC</h3>
+        <button onclick="closeKycModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p class="text-slate-300">Student: <b id="kycModalStudentName" class="text-white"></b></p>
+      <div>
+        <label class="block text-slate-400 mb-1">Enter 12-Digit Aadhaar Card Number *</label>
+        <input type="text" id="kycAadhaarInput" maxlength="12" placeholder="12 Digit Aadhaar" class="w-full bg-[#0b1120] border border-[#1e293b] rounded px-3 py-2 text-white font-mono text-center tracking-widest focus:outline-none focus:border-purple-500">
+      </div>
+      <input type="hidden" id="kycStudentId">
+      <button onclick="submitKycUpdate()" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-2 rounded text-xs transition-all">
+        Verify & Save KYC
+      </button>
+    </div>
+  </div>
+
+  <!-- RECORD FEE MODAL -->
+  <div id="modalRecordFee" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#131d33] border border-[#1e293b] rounded-xl w-full max-w-sm p-4 space-y-3 text-xs shadow-2xl">
+      <div class="flex items-center justify-between border-b border-[#1e293b] pb-2">
+        <h3 class="font-bold text-white"><i class="fa-solid fa-indian-rupee-sign text-emerald-400 mr-1.5"></i>Record Fee / Renew</h3>
+        <button onclick="closeFeeRecordModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div>
+        <label class="block text-slate-400 mb-1">Select Student</label>
+        <select id="feeStudentSelect" class="w-full bg-[#0b1120] border border-[#1e293b] rounded px-3 py-2 text-white"></select>
+      </div>
+      <div>
+        <label class="block text-slate-400 mb-1">Renew Months</label>
+        <select id="feeRenewMonths" class="w-full bg-[#0b1120] border border-[#1e293b] rounded px-3 py-2 text-white">
+          <option value="1">1 Month</option>
+          <option value="3">3 Months</option>
+          <option value="6">6 Months</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-slate-400 mb-1">Amount (₹)</label>
+          <input type="number" id="feeAmountInput" value="600" class="w-full bg-[#0b1120] border border-[#1e293b] rounded px-2 py-1 text-emerald-400 font-bold">
+        </div>
+        <div>
+          <label class="block text-slate-400 mb-1">Mode</label>
+          <select id="feeModeSelect" class="w-full bg-[#0b1120] border border-[#1e293b] rounded px-2 py-1 text-white">
+            <option value="Cash">Cash</option>
+            <option value="UPI">UPI</option>
+          </select>
+        </div>
+      </div>
+      <button onclick="submitFeePayment()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 rounded text-xs transition-all">
+        Confirm Payment & Save
+      </button>
+    </div>
+  </div>
+
+  
+  <!-- COLLECT DUE / EDIT PAYMENT MODAL -->
+  <div id="modalCollectDue" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-[#131d33] border border-[#1e293b] rounded-xl w-full max-w-sm overflow-hidden shadow-2xl">
+      <div class="p-4 border-b border-[#1e293b] flex items-center justify-between">
+        <h3 class="text-sm font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-hand-holding-dollar text-amber-400"></i> Collect Due / Edit Payment
+        </h3>
+        <button onclick="closeCollectDueModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <div class="p-4 space-y-3 text-xs">
+        <div class="p-3 bg-[#0b1120] rounded-lg border border-[#1e293b] space-y-1">
+          <p class="text-slate-400 text-[11px]">Student: <b id="dueModalStudentName" class="text-white text-xs"></b></p>
+          <div class="flex justify-between items-center pt-1 border-t border-slate-800 text-[11px]">
+            <span>Total Fee: <b id="dueModalTotalFeeDisplay" class="text-white font-bold">₹0</b></span>
+            <span>Paid: <b id="dueModalPaidDisplay" class="text-emerald-400 font-bold">₹0</b></span>
+            <span>Due: <b id="dueModalDueDisplay" class="text-rose-400 font-bold">₹0</b></span>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Edit Total Fee (Agar badalna ho)</label>
+          <input type="number" id="dueModalEditFee" oninput="calculateDueModalPending()" class="w-full bg-[#0b1120] border border-[#1e293b] rounded px-3 py-2 text-white font-bold focus:outline-none focus:border-emerald-500">
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1 font-semibold text-amber-300">Amount Receiving Now (Abhi Kitna Mila ₹) *</label>
+          <input type="number" id="dueModalNowPaying" class="w-full bg-[#0b1120] border border-amber-500/50 rounded px-3 py-2 text-emerald-400 font-bold text-sm focus:outline-none focus:border-amber-400">
+        </div>
+
+        <div>
+          <label class="block text-slate-400 mb-1">Payment Mode</label>
+          <select id="dueModalPayMode" class="w-full bg-[#0b1120] border border-[#1e293b] rounded px-3 py-2 text-white">
+            <option value="Cash">Cash</option>
+            <option value="UPI">UPI</option>
+          </select>
+        </div>
+
+        <input type="hidden" id="dueModalStudentId">
+
+        <button onclick="submitCollectDue()" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-2.5 rounded-lg text-xs shadow-lg transition-all flex items-center justify-center gap-1.5 mt-2">
+          <i class="fa-solid fa-circle-check"></i> Save Payment & Update Live
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPT CONTROLLER -->
+  <script>
+    // =========================================================================
+    // GOOGLE APPS SCRIPT WEB APP LINK
+    // =========================================================================
+    const GOOGLE_SHEET_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbyY_04TZ2hI2mc3NArI0ZsTLfXemvnlUlTTKv7Bo3GGAMRKAZlr-CKAaxW-17oAZ9Gj/exec";
+    // =========================================================================
+
+    const STORAGE_KEY = 'GRANTHDESK_DATA_V17_AADHAAR_FIX';
+
+    let appData = {
+      config: {
+        libName: 'digital study hub',
+        address: 'pashurampur',
+        phone: '9235907324',
+        upi: '9235907324@upi',
+        totalSeats: 32
+      },
+      currentShift: 'Morning',
+      seatFilter: 'all',
+      directoryFilter: 'all',
+      searchQuery: '',
+      students: [],
+      ledger: []
+    };
+
+    function getTodayYMD() {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    function isDateToday(rawDateStr) {
+      if (!rawDateStr) return false;
+      const s = String(rawDateStr).trim();
+      const now = new Date();
+      const y = String(now.getFullYear());
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+
+      if (s.includes(`${y}-${m}-${d}`)) return true;
+      if (s.includes(`${d}/${m}/${y}`) || s.includes(`${m}/${d}/${y}`)) return true;
+
+      const dNum = String(now.getDate());
+      const mNum = String(now.getMonth() + 1);
+      if (s.startsWith(`${dNum}/${mNum}/${y}`) || s.startsWith(`${mNum}/${dNum}/${y}`)) return true;
+
+      const parsed = new Date(s);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.getDate() === now.getDate() &&
+               parsed.getMonth() === now.getMonth() &&
+               parsed.getFullYear() === now.getFullYear();
+      }
+      return false;
+    }
+
+    function loadSavedData() {
+      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('GRANTHDESK_DATA_V16_BLANK_FIX') || localStorage.getItem('GRANTHDESK_DATA_V15_TODAY_FIX');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.config) appData.config = Object.assign(appData.config, parsed.config);
+          if (Array.isArray(parsed.students)) appData.students = parsed.students;
+          if (Array.isArray(parsed.ledger)) appData.ledger = parsed.ledger;
+        } catch (e) {}
+      }
+      updateBrandingUI();
+      renderAll();
+
+      syncWithGoogleSheet(false);
+    }
+
+    function persistData() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+      updateBrandingUI();
+      renderAll();
+    }
+
+    function updateBrandingUI() {
+      document.getElementById('headerLibName').innerText = appData.config.libName;
+      document.getElementById('headerLibAddress').innerText = appData.config.address;
+      document.getElementById('cfgLibName').value = appData.config.libName;
+      document.getElementById('cfgLibAddress').value = appData.config.address;
+      document.getElementById('cfgLibPhone').value = appData.config.phone;
+      document.getElementById('cfgLibUpi').value = appData.config.upi;
+      document.getElementById('cfgSeatDisplay').innerText = appData.config.totalSeats;
+      document.getElementById('statTotalSeats').innerText = appData.config.totalSeats;
+    }
+
+    function openSettingsModal() { 
+      document.getElementById('cfgSeatDisplay').innerText = appData.config.totalSeats;
+      document.getElementById('modalSettings').classList.remove('hidden'); 
+    }
+    function closeSettingsModal() { document.getElementById('modalSettings').classList.add('hidden'); }
+
+    function adjustSeatCapacity(d) {
+      let c = Number(appData.config.totalSeats) + d;
+      if (c >= 1 && c <= 200) {
+        appData.config.totalSeats = c;
+        document.getElementById('cfgSeatDisplay').innerText = c;
+        document.getElementById('statTotalSeats').innerText = c;
+        persistData();
+      }
+    }
+
+    function saveLibrarySettings() {
+      appData.config.libName = document.getElementById('cfgLibName').value.trim() || 'digital study hub';
+      appData.config.address = document.getElementById('cfgLibAddress').value.trim() || 'pashurampur';
+      appData.config.phone = document.getElementById('cfgLibPhone').value.trim() || '9235907324';
+      appData.config.upi = document.getElementById('cfgLibUpi').value.trim() || '9235907324@upi';
+      
+      persistData();
+      closeSettingsModal();
+      
+      postToSheet({ action: "UPDATE_SETTINGS", config: appData.config });
+      
+      setTimeout(() => {
+        syncWithGoogleSheet(true);
+      }, 1500);
+    }
+
+    // ==================== LIVE GOOGLE SHEET SYNC (JSONP) ====================
+    window.handleSheetSyncResponse = function(json) {
+      const spinner = document.getElementById('syncSpinner');
+      if (spinner) spinner.classList.remove('fa-spin');
+      if (window.sheetSyncTimeout) clearTimeout(window.sheetSyncTimeout);
+
+      if (json && json.status === "success") {
+        if (Array.isArray(json.students) && json.students.length > 0) {
+          appData.students = json.students.map(s => ({
+            id: Number(s.id),
+            name: String(s.name || ''),
+            phone: String(s.phone || ''),
+            phoneVerified: true,
+            aadhaar: String(s.aadhaar || ''),
+            kycDone: Boolean(s.kycDone),
+            seat: Number(s.seat || 1),
+            shift: String(s.shift || 'Morning'),
+            planMonths: Number(s.planMonths || 1),
+            fee: Number(s.fee || 0),
+            paid: Number(s.paid || 0),
+            joiningDate: String(s.joiningDate || getTodayYMD()).slice(0, 10),
+            validityDate: String(s.validityDate || '').slice(0, 10)
+          }));
+        }
+        if (Array.isArray(json.ledger) && json.ledger.length > 0) {
+          appData.ledger = json.ledger.map(tx => ({
+            id: Number(tx.id),
+            date: String(tx.date || ''),
+            student: String(tx.student || ''),
+            details: String(tx.details || ''),
+            mode: String(tx.mode || 'Cash'),
+            amount: Number(tx.amount || 0)
+          }));
+        }
+        if (json.config && json.config.libName) {
+          appData.config.libName = json.config.libName;
+          if (json.config.address) appData.config.address = json.config.address;
+          if (json.config.phone) appData.config.phone = json.config.phone;
+          if (json.config.upi) appData.config.upi = json.config.upi;
+          if (json.config.totalSeats && Number(json.config.totalSeats) > 0) {
+            appData.config.totalSeats = Number(json.config.totalSeats);
+          }
+        }
+        persistData();
+        document.getElementById('syncStatusBadge').className = 'text-[10px] bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-0.5 rounded-full flex items-center gap-1';
+        document.getElementById('syncStatusBadge').innerHTML = '<i class="fa-solid fa-cloud"></i> Cloud Synced';
+      }
+    };
+
+    function syncWithGoogleSheet(showAlert = true) {
+      const spinner = document.getElementById('syncSpinner');
+      if (spinner) spinner.classList.add('fa-spin');
+
+      const existingScript = document.getElementById('jsonp_sync_script');
+      if (existingScript) existingScript.remove();
+
+      const script = document.createElement('script');
+      script.id = 'jsonp_sync_script';
+      const cleanUrl = GOOGLE_SHEET_WEBAPP_URL.trim();
+      const separator = cleanUrl.includes('?') ? '&' : '?';
+      script.src = `${cleanUrl}${separator}callback=handleSheetSyncResponse&t=${Date.now()}`;
+
+      script.onerror = function() {
+        if (spinner) spinner.classList.remove('fa-spin');
+        if (showAlert) alert("Google Sheet connect nahi ho payi. Notepad me link aur Google Apps Script deployment verify karein.");
+      };
+
+      window.sheetSyncTimeout = setTimeout(() => {
+        if (spinner && spinner.classList.contains('fa-spin')) {
+          spinner.classList.remove('fa-spin');
+        }
+      }, 10000);
+
+      document.body.appendChild(script);
+    }
+
+    async function postToSheet(payload) {
+      try {
+        await fetch(GOOGLE_SHEET_WEBAPP_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) {
+        console.warn('Sheet post error:', e);
+      }
+    }
+
+    // ==================== EXCEL (.XLSX) BACKUP ====================
+    function downloadExcelBackup() {
+      try {
+        const wb = XLSX.utils.book_new();
+
+        const wsStudents = XLSX.utils.json_to_sheet(appData.students.map(s => ({
+          "ID": s.id, "Name": s.name, "Phone": s.phone, "Aadhaar_KYC": s.aadhaar || '', "KYC_Done": s.kycDone ? "Yes" : "No", "Seat_No": s.seat,
+          "Shift": s.shift, "Plan_Months": s.planMonths, "Monthly_Fee": s.fee,
+          "Paid_Amount": s.paid, "Joining_Date": s.joiningDate, "Validity_Date": s.validityDate,
+          "Status": "Active"
+        })));
+        XLSX.utils.book_append_sheet(wb, wsStudents, "Students");
+
+        const wsLedger = XLSX.utils.json_to_sheet(appData.ledger.map(tx => ({
+          "Tx_ID": tx.id, "Date_Time": tx.date, "Student_Name": tx.student,
+          "Seat_Shift_Details": tx.details, "Payment_Mode": tx.mode, "Amount": tx.amount
+        })));
+        XLSX.utils.book_append_sheet(wb, wsLedger, "Daily_Ledger");
+
+        const wsSettings = XLSX.utils.json_to_sheet([
+          { "Key": "Library_Name", "Value": appData.config.libName },
+          { "Key": "Branch_Address", "Value": appData.config.address },
+          { "Key": "Owner_Phone", "Value": appData.config.phone },
+          { "Key": "Owner_UPI", "Value": appData.config.upi },
+          { "Key": "Total_Seats", "Value": appData.config.totalSeats }
+        ]);
+        XLSX.utils.book_append_sheet(wb, wsSettings, "Settings");
+
+        XLSX.writeFile(wb, `${appData.config.libName.replace(/\s+/g, '_')}_Backup.xlsx`);
+      } catch (err) {
+        alert("Excel export failed.");
+      }
+    }
+
+    function restoreExcelBackup(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+
+          if (workbook.Sheets["Students"]) {
+            const raw = XLSX.utils.sheet_to_json(workbook.Sheets["Students"]);
+            if (raw.length > 0) {
+              appData.students = raw.map((r, i) => {
+                const aadh = String(r["Aadhaar_KYC"] || r["aadhaar_kyc"] || r["aadhaar"] || '').trim();
+                return {
+                  id: Number(r["ID"] || r["id"] || (Date.now() + i)),
+                  name: String(r["Name"] || r["name"] || ''),
+                  phone: String(r["Phone"] || r["phone"] || ''),
+                  aadhaar: aadh,
+                  kycDone: Boolean(aadh && aadh.length === 12),
+                  seat: Number(r["Seat_No"] || r["seat_no"] || 1),
+                  shift: String(r["Shift"] || r["shift"] || 'Morning'),
+                  planMonths: Number(r["Plan_Months"] || r["plan_month"] || 1),
+                  fee: Number(r["Monthly_Fee"] || r["monthly_fee"] || 0),
+                  paid: Number(r["Paid_Amount"] || r["paid_amount"] || 0),
+                  joiningDate: String(r["Joining_Date"] || r["joining_date"] || getTodayYMD()).slice(0, 10),
+                  validityDate: String(r["Validity_Date"] || r["validity_date"] || '').slice(0, 10),
+                  phoneVerified: true
+                };
+              });
+            }
+          }
+
+          if (workbook.Sheets["Daily_Ledger"]) {
+            const rawL = XLSX.utils.sheet_to_json(workbook.Sheets["Daily_Ledger"]);
+            if (rawL.length > 0) {
+              appData.ledger = rawL.map((r, i) => ({
+                id: Number(r["Tx_ID"] || r["tx_id"] || (Date.now() + i)),
+                date: String(r["Date_Time"] || r["date_time"] || ''),
+                student: String(r["Student_Name"] || r["student_name"] || ''),
+                details: String(r["Seat_Shift_Details"] || r["seat_shift_details"] || ''),
+                mode: String(r["Payment_Mode"] || r["payment_mode"] || 'Cash'),
+                amount: Number(r["Amount"] || r["amount"] || 0)
+              }));
+            }
+          }
+
+          persistData();
+          alert(`Excel restored! ${appData.students.length} students loaded.`);
+          closeSettingsModal();
+        } catch (err) {
+          alert("Excel file read error.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
+    function getRemainingDays(valDateStr) {
+      if (!valDateStr) return 0;
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const val = new Date(valDateStr);
+      val.setHours(0,0,0,0);
+      return Math.ceil((val - today) / (1000 * 60 * 60 * 24));
+    }
+
+    // ==================== RENDERING UI ====================
+    function renderSeatGrid() {
+      const container = document.getElementById('seatGridContainer');
+      container.innerHTML = '';
+      let vacant = 0, booked = 0, due = 0;
+
+      const totalSeatsCount = Number(appData.config.totalSeats) || 32;
+
+      for (let s = 1; s <= totalSeatsCount; s++) {
+        const occ = appData.students.find(st => Number(st.seat) === s && (st.shift === appData.currentShift || st.shift === 'FullDay'));
+        let st = 'vacant';
+        if (occ) {
+          const days = getRemainingDays(occ.validityDate);
+          if (days <= 2) { st = 'due'; due++; booked++; }
+          else { st = 'booked'; booked++; }
+        } else {
+          vacant++;
+        }
+
+        if (appData.seatFilter === 'vacant' && st !== 'vacant') continue;
+        if (appData.seatFilter === 'booked' && st === 'vacant') continue;
+        if (appData.seatFilter === 'due' && st !== 'due') continue;
+
+        const card = document.createElement('div');
+        if (st === 'vacant') {
+          card.className = "bg-[#131d33] border border-dashed border-emerald-500/30 rounded-xl p-3 flex flex-col justify-between hover:bg-emerald-950/20 transition-all";
+          card.innerHTML = `
+            <div class="flex justify-between items-center"><b class="text-xs text-white">Seat #${s}</b><span class="text-[9px] text-emerald-400 bg-emerald-950 px-1.5 py-0.5 rounded border border-emerald-800">KHALI</span></div>
+            <div class="my-3 text-center"><i class="fa-solid fa-chair text-xl text-slate-600"></i></div>
+            <button onclick="quickAllotSeat(${s})" class="w-full bg-emerald-600/30 hover:bg-emerald-600 text-emerald-300 hover:text-white text-[11px] py-1 rounded border border-emerald-600/40 transition-all">Allot</button>
+          `;
+        } else if (st === 'due') {
+          const days = getRemainingDays(occ.validityDate);
+          card.className = "bg-[#131d33] border-2 border-amber-500/50 rounded-xl p-3 flex flex-col justify-between shadow-amber-950/30";
+          card.innerHTML = `
+            <div class="flex justify-between items-center"><b class="text-xs text-white">Seat #${s}</b><span class="text-[9px] text-amber-400 bg-amber-950 px-1.5 py-0.5 rounded border border-amber-700 animate-pulse">DUE</span></div>
+            <div class="my-1"><p class="font-bold text-white text-xs truncate">${occ.name}</p><p class="text-[10px] text-slate-400 font-mono">+91 ${occ.phone}</p><div class="text-[9px] text-amber-300 mt-1">${days < 0 ? 'Expired' : days + ' day left'}</div></div>
+            <div class="flex gap-1 mt-1"><button onclick="sendWhatsAppReminder(${occ.id})" class="flex-1 bg-emerald-600 text-white text-[10px] py-1 rounded hover:bg-emerald-500 transition-all"><i class="fa-brands fa-whatsapp"></i></button><button onclick="openFeeRenewDirect(${occ.id})" class="bg-amber-600 text-white text-[10px] px-2 py-1 rounded hover:bg-amber-500 transition-all"><i class="fa-solid fa-rotate-right"></i></button></div>
+          `;
+        } else {
+          const days = getRemainingDays(occ.validityDate);
+          card.className = "bg-[#131d33] border border-rose-500/40 rounded-xl p-3 flex flex-col justify-between";
+          card.innerHTML = `
+            <div class="flex justify-between items-center"><b class="text-xs text-white">Seat #${s}</b><span class="text-[9px] text-rose-400 bg-rose-950 px-1.5 py-0.5 rounded border border-rose-800">BOOKED</span></div>
+            <div class="my-1"><p class="font-bold text-white text-xs truncate">${occ.name}</p><p class="text-[10px] text-slate-400 font-mono">+91 ${occ.phone}</p><p class="text-[9px] text-slate-400 mt-1">${days} days left</p></div>
+            <button onclick="sendWhatsAppSlip(${occ.id})" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 text-[10px] py-1 rounded border border-slate-700 transition-all"><i class="fa-solid fa-receipt"></i> Slip</button>
+          `;
+        }
+        container.appendChild(card);
+      }
+
+      document.getElementById('countFilterAll').innerText = totalSeatsCount;
+      document.getElementById('countFilterVacant').innerText = vacant;
+      document.getElementById('countFilterBooked').innerText = booked;
+      document.getElementById('countFilterDue').innerText = due;
+      document.getElementById('statVacantSeats').innerText = vacant;
+      document.getElementById('statTotalSeats').innerText = totalSeatsCount;
+      document.getElementById('statSeatProgressBar').style.width = Math.round((booked / totalSeatsCount) * 100) + '%';
+    }
+
+    function renderStudentsTable() {
+      const tbody = document.getElementById('studentTableBody');
+      tbody.innerHTML = '';
+      let list = [...appData.students];
+
+      if (appData.directoryFilter === 'kyc_verified') list = list.filter(s => s.kycDone && s.aadhaar && s.aadhaar.length === 12);
+      if (appData.directoryFilter === 'not_kyc') list = list.filter(s => !s.kycDone || !s.aadhaar || s.aadhaar.length !== 12);
+      if (appData.directoryFilter === 'due') list = list.filter(s => getRemainingDays(s.validityDate) <= 2);
+
+      if (appData.searchQuery) {
+        list = list.filter(s => 
+          s.name.toLowerCase().includes(appData.searchQuery) ||
+          s.phone.includes(appData.searchQuery) ||
+          String(s.seat).includes(appData.searchQuery)
+        );
+      }
+
+      list.forEach(s => {
+        const days = getRemainingDays(s.validityDate);
+        const statusBadge = (days <= 2)
+          ? `<span class="bg-amber-950 text-amber-300 border border-amber-800 px-2.5 py-0.5 rounded-full text-[10px] font-bold">Due Alert</span>`
+          : `<span class="bg-emerald-950 text-emerald-400 border border-emerald-800 px-2.5 py-0.5 rounded-full text-[10px] font-bold">Active</span>`;
+
+        let kycBadge = '';
+        const aadhStr = String(s.aadhaar || '').trim();
+        if (aadhStr.length === 12) {
+          // Masking Aadhaar for clean display: e.g. XXXX-XXXX-1234
+          const maskedAadhaar = 'XXXX-XXXX-' + aadhStr.slice(8);
+          kycBadge = `
+            <div>
+              <span class="text-emerald-400 font-mono text-xs flex items-center gap-1 font-bold">
+                <i class="fa-solid fa-circle-check"></i> ${maskedAadhaar}
+              </span>
+              <span class="text-[10px] text-slate-400">Verified (12-Digit)</span>
+            </div>
+          `;
+        } else {
+          kycBadge = `<button onclick="openKycVerifyModal(${s.id})" class="bg-rose-950 hover:bg-rose-900 border border-rose-800 text-rose-300 text-[10px] font-bold px-2 py-0.5 rounded transition-all flex items-center gap-1"><i class="fa-solid fa-triangle-exclamation"></i> KYC Pending</button>`;
+        }
+
+        const fee = Number(s.fee) || 0;
+        const paid = Number(s.paid) || 0;
+        const dueAmt = Math.max(0, fee - paid);
+
+        let feeDueHtml = `
+          <div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-white font-bold">Fee: ₹${fee}</span>
+              <span class="text-emerald-400 text-[11px]">(Paid: ₹${paid})</span>
+            </div>
+            <div class="mt-0.5">
+              ${dueAmt > 0 
+                ? `<span class="bg-rose-950/80 text-rose-300 border border-rose-800 px-1.5 py-0.5 rounded text-[10px] font-bold">Due: ₹${dueAmt}</span>` 
+                : `<span class="text-emerald-400 text-[10px] font-medium"><i class="fa-solid fa-circle-check"></i> Paid Full</span>`}
+            </div>
+          </div>
+        `;
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-800/40 transition-colors";
+        tr.innerHTML = `
+          <td class="py-3 px-4"><p class="font-bold text-white">${s.name}</p><p class="text-[11px] text-slate-400">Seat ${s.seat} • ${s.shift}</p></td>
+          <td class="py-3 px-4 font-mono text-slate-300">+91 ${s.phone}</td>
+          <td class="py-3 px-4">${kycBadge}</td>
+          <td class="py-3 px-4">${s.planMonths} Mo (${s.joiningDate})</td>
+          <td class="py-3 px-4">${feeDueHtml}</td>
+          <td class="py-3 px-4"><p class="font-bold text-slate-200">${s.validityDate}</p><p class="text-[10px] ${days <= 2 ? 'text-amber-400 font-bold' : 'text-slate-400'}">${days < 0 ? 'Expired' : days + ' days left'}</p></td>
+          <td class="py-3 px-4">${statusBadge}</td>
+          <td class="py-3 px-4 text-right">
+            <div class="flex items-center justify-end gap-1.5">
+              <button onclick="openCollectDueModal(${s.id})" class="px-2 h-7 rounded ${dueAmt > 0 ? 'bg-amber-600 hover:bg-amber-500 text-white font-bold shadow animate-pulse' : 'bg-slate-800 hover:bg-slate-700 text-slate-300'} text-[10px] flex items-center gap-1 transition-all" title="Collect Due / Edit Payment">
+                <i class="fa-solid fa-indian-rupee-sign"></i> ${dueAmt > 0 ? 'Pay Due' : 'Edit Fee'}
+              </button>
+              <button onclick="sendWhatsAppReminder(${s.id})" class="w-7 h-7 rounded bg-emerald-950 text-emerald-400 border border-emerald-700 flex items-center justify-center hover:bg-emerald-900 transition-all" title="WhatsApp Reminder"><i class="fa-brands fa-whatsapp text-xs"></i></button>
+              <button onclick="openFeeRenewDirect(${s.id})" class="w-7 h-7 rounded bg-sky-950 text-sky-400 border border-sky-700 flex items-center justify-center hover:bg-sky-900 transition-all" title="Renew Plan"><i class="fa-solid fa-rotate-right text-xs"></i></button>
+              <button onclick="deleteStudentLive(${s.id})" class="w-7 h-7 rounded bg-rose-950 text-rose-400 border border-rose-700 flex items-center justify-center hover:bg-rose-900 transition-all" title="Delete Student"><i class="fa-solid fa-trash-can text-xs"></i></button>
+            </div>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderLedger() {
+      const tbody = document.getElementById('ledgerTableBody');
+      tbody.innerHTML = '';
+      appData.ledger.slice().reverse().forEach(tx => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="py-2.5 px-4 text-slate-400 font-mono">${tx.date}</td>
+          <td class="py-2.5 px-4 font-bold text-white">${tx.student}</td>
+          <td class="py-2.5 px-4 text-slate-300">${tx.details}</td>
+          <td class="py-2.5 px-4"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${tx.mode === 'Cash' ? 'bg-emerald-950 text-emerald-400' : 'bg-teal-950 text-teal-400'}">${tx.mode}</span></td>
+          <td class="py-2.5 px-4 font-bold text-emerald-400">₹${tx.amount}</td>
+          <td class="py-2.5 px-4 text-right text-slate-400 text-xs">Completed</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ==================== METRICS ====================
+    function updateMetrics() {
+      let todayCash = 0, todayUpi = 0, monthlyTotal = 0;
+
+      appData.ledger.forEach(tx => {
+        const amt = Number(tx.amount) || 0;
+        const txDateStr = String(tx.date || '');
+        
+        if (isDateToday(txDateStr)) {
+          if (tx.mode === 'Cash') todayCash += amt;
+          if (tx.mode === 'UPI') todayUpi += amt;
+        }
+
+        monthlyTotal += amt;
+      });
+
+      document.getElementById('statTodayCollection').innerText = '₹' + (todayCash + todayUpi).toLocaleString();
+      document.getElementById('statTodayCash').innerText = '₹' + todayCash.toLocaleString();
+      document.getElementById('statTodayUpi').innerText = '₹' + todayUpi.toLocaleString();
+      
+      document.getElementById('statMonthlyCollection').innerText = '₹' + monthlyTotal.toLocaleString();
+
+      let dueCount = 0, totalDues = 0;
+      appData.students.forEach(s => {
+        const fee = Number(s.fee) || 0;
+        const paid = Number(s.paid) || 0;
+        const balanceDue = Math.max(0, fee - paid);
+        const isExpiring = getRemainingDays(s.validityDate) <= 2;
+
+        if (balanceDue > 0 || isExpiring) {
+          dueCount++;
+          totalDues += balanceDue + (isExpiring ? fee : 0);
+        }
+      });
+      document.getElementById('statPendingDues').innerText = '₹' + totalDues.toLocaleString();
+      document.getElementById('statDueCount').innerText = `${dueCount} Students Due`;
+
+      const kycCount = appData.students.filter(s => s.kycDone && s.aadhaar && s.aadhaar.length === 12).length;
+      document.getElementById('statKycDone').innerText = kycCount;
+      document.getElementById('statKycPendingTag').innerText = `(${appData.students.length - kycCount} Not KYC)`;
+    }
+
+    function renderAll() {
+      updateMetrics();
+      renderSeatGrid();
+      renderStudentsTable();
+      renderLedger();
+    }
+
+    function switchTab(t) {
+      ['seat_layout', 'students', 'ledger'].forEach(x => {
+        document.getElementById('view' + (x === 'seat_layout' ? 'SeatLayout' : (x === 'students' ? 'Students' : 'Ledger'))).classList.add('hidden');
+        document.getElementById('tabBtn' + (x === 'seat_layout' ? 'SeatLayout' : (x === 'students' ? 'Students' : 'Ledger'))).className = 'px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white flex items-center gap-2 transition-all';
+      });
+      if (t === 'seat_layout') {
+        document.getElementById('viewSeatLayout').classList.remove('hidden');
+        document.getElementById('tabBtnSeatLayout').className = 'px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-2';
+      } else if (t === 'students') {
+        document.getElementById('viewStudents').classList.remove('hidden');
+        document.getElementById('tabBtnStudents').className = 'px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-2';
+      } else if (t === 'ledger') {
+        document.getElementById('viewLedger').classList.remove('hidden');
+        document.getElementById('tabBtnLedger').className = 'px-4 py-2 rounded-lg text-sm font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-2';
+      }
+    }
+
+    function setShiftFilter(s) {
+      appData.currentShift = s;
+      ['Morning', 'Evening', 'Night', 'FullDay'].forEach(x => {
+        document.getElementById('shiftBtn' + x).className = (x === s) ? 'px-3 py-1 text-xs rounded font-medium bg-emerald-600 text-white transition-all' : 'px-3 py-1 text-xs rounded font-medium text-slate-400 hover:text-white transition-all';
+      });
+      renderSeatGrid();
+    }
+
+    function setSeatStatusFilter(st) {
+      appData.seatFilter = st;
+      ['all', 'vacant', 'booked', 'due'].forEach(x => {
+        const btn = document.getElementById('seatFilter' + x.charAt(0).toUpperCase() + x.slice(1));
+        if (x === st) btn.classList.add('ring-2', 'ring-emerald-400');
+        else btn.classList.remove('ring-2', 'ring-emerald-400');
+      });
+      renderSeatGrid();
+    }
+
+    function filterByStatus(st) {
+      appData.directoryFilter = st;
+      renderStudentsTable();
+    }
+
+    function handleSearch(q) {
+      appData.searchQuery = q.toLowerCase();
+      renderAll();
+    }
+
+    function openAdmissionModal() {
+      document.getElementById('admJoiningDate').value = getTodayYMD();
+      document.getElementById('admTotalFee').value = '';
+      document.getElementById('admPaidAmount').value = '';
+      populateAvailableSeatsDropdown();
+      document.getElementById('modalAdmission').classList.remove('hidden');
+    }
+    function closeAdmissionModal() { document.getElementById('modalAdmission').classList.add('hidden'); }
+
+    function quickAllotSeat(s) {
+      openAdmissionModal();
+      document.getElementById('admShift').value = appData.currentShift;
+      populateAvailableSeatsDropdown();
+      document.getElementById('admSeat').value = s;
+    }
+
+    function populateAvailableSeatsDropdown() {
+      const shift = document.getElementById('admShift').value;
+      const select = document.getElementById('admSeat');
+      select.innerHTML = '';
+      const totalSeatsCount = Number(appData.config.totalSeats) || 32;
+      for (let s = 1; s <= totalSeatsCount; s++) {
+        const occ = appData.students.some(st => Number(st.seat) === s && (st.shift === shift || st.shift === 'FullDay'));
+        if (!occ) {
+          const opt = document.createElement('option');
+          opt.value = s;
+          opt.innerText = `Seat Cabin #${s}`;
+          select.appendChild(opt);
+        }
+      }
+    }
+
+    function handleAdmissionSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('admName').value.trim();
+      const phone = document.getElementById('admPhone').value.trim();
+      const aadhaar = document.getElementById('admAadhaar').value.trim();
+      const shift = document.getElementById('admShift').value;
+      const seat = Number(document.getElementById('admSeat').value);
+      const planMonths = Number(document.getElementById('admPlan').value);
+      const joiningDate = document.getElementById('admJoiningDate').value;
+      const fee = Number(document.getElementById('admTotalFee').value) || 0;
+      const paid = Number(document.getElementById('admPaidAmount').value) || 0;
+      const mode = document.getElementById('admPayMode').value;
+
+      if (aadhaar && aadhaar.length !== 12) {
+        alert("Aadhaar card number poora 12 digits ka hona chahiye (ya khali chhod dein)!");
+        return;
+      }
+
+      const val = new Date(joiningDate);
+      val.setMonth(val.getMonth() + planMonths);
+      const validityDate = val.toISOString().slice(0, 10);
+
+      const isKycDone = Boolean(aadhaar && aadhaar.length === 12);
+
+      const newStudent = {
+        id: Date.now(),
+        name, phone, phoneVerified: true,
+        aadhaar: aadhaar,
+        kycDone: isKycDone,
+        seat, shift, planMonths, fee, paid, joiningDate, validityDate
+      };
+
+      const now = new Date();
+      const todayFormatted = `${getTodayYMD()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+      appData.students.push(newStudent);
+      appData.ledger.push({
+        id: Date.now() + 1,
+        date: todayFormatted,
+        student: name,
+        details: `Admission: Seat ${seat} (${shift})`,
+        mode, amount: paid
+      });
+
+      persistData();
+      closeAdmissionModal();
+      document.getElementById('formAdmission').reset();
+
+      postToSheet({ action: "ADD_STUDENT", student: newStudent, payMode: mode, dateStr: todayFormatted });
+
+      if (confirm(`Seat #${seat} Allotted to ${name}! Send WhatsApp Receipt?`)) {
+        sendWhatsAppSlip(newStudent.id);
+      }
+    }
+
+    function openKycVerifyModal(id) {
+      const s = appData.students.find(st => st.id === id);
+      if (!s) return;
+      document.getElementById('kycStudentId').value = s.id;
+      document.getElementById('kycModalStudentName').innerText = `${s.name} (Seat #${s.seat})`;
+      document.getElementById('kycAadhaarInput').value = s.aadhaar || '';
+      document.getElementById('modalKycVerify').classList.remove('hidden');
+    }
+    function closeKycModal() { document.getElementById('modalKycVerify').classList.add('hidden'); }
+
+    function submitKycUpdate() {
+      const id = Number(document.getElementById('kycStudentId').value);
+      const val = document.getElementById('kycAadhaarInput').value.trim();
+      if (val.length !== 12 || isNaN(val)) {
+        alert("Kripya sahi 12-digit Aadhaar card number daalein!");
+        return;
+      }
+      const s = appData.students.find(st => st.id === id);
+      if (s) {
+        s.aadhaar = val;
+        s.kycDone = true;
+        persistData();
+        closeKycModal();
+        postToSheet({ action: "UPDATE_KYC", studentId: id, aadhaar: val });
+        alert(`KYC Done & Verified for ${s.name}!`);
+      }
+    }
+
+    function deleteStudentLive(id) {
+      const s = appData.students.find(st => st.id === id);
+      if (!s) return;
+      if (confirm(`${s.name} (Seat #${s.seat}) ko delete karein? Yeh Google Sheet se bhi poori tarah delete ho jayega.`)) {
+        appData.students = appData.students.filter(st => st.id !== id);
+        persistData();
+
+        postToSheet({ action: "DELETE_STUDENT", studentId: id });
+      }
+    }
+
+    function openFeeRecordModal() {
+      const sel = document.getElementById('feeStudentSelect');
+      sel.innerHTML = '';
+      appData.students.forEach(s => {
+        const o = document.createElement('option');
+        o.value = s.id;
+        o.innerText = `${s.name} (Seat #${s.seat} - ${s.shift})`;
+        sel.appendChild(o);
+      });
+      document.getElementById('modalRecordFee').classList.remove('hidden');
+    }
+    function openFeeRenewDirect(id) {
+      openFeeRecordModal();
+      document.getElementById('feeStudentSelect').value = id;
+    }
+    function closeFeeRecordModal() { document.getElementById('modalRecordFee').classList.add('hidden'); }
+
+    function submitFeePayment() {
+      const id = Number(document.getElementById('feeStudentSelect').value);
+      const m = Number(document.getElementById('feeRenewMonths').value);
+      const amt = Number(document.getElementById('feeAmountInput').value) || 0;
+      const mode = document.getElementById('feeModeSelect').value;
+
+      const s = appData.students.find(st => st.id === id);
+      if (!s) return;
+
+      const v = new Date(s.validityDate || getTodayYMD());
+      v.setMonth(v.getMonth() + m);
+      s.validityDate = v.toISOString().slice(0, 10);
+
+      const now = new Date();
+      const todayFormatted = `${getTodayYMD()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+      appData.ledger.push({
+        id: Date.now(),
+        date: todayFormatted,
+        student: s.name,
+        details: `Fee Renewal (+${m} Mo) Seat #${s.seat}`,
+        mode, amount: amt
+      });
+
+      persistData();
+      closeFeeRecordModal();
+
+      postToSheet({
+        action: "RECORD_FEE",
+        studentId: id,
+        studentName: s.name,
+        seat: s.seat,
+        months: m,
+        newValidityDate: s.validityDate,
+        amount: amt,
+        mode,
+        dateStr: todayFormatted
+      });
+      alert(`Fee Recorded! Validity extended to ${s.validityDate}`);
+    }
+
+    function sendWhatsAppReminder(id) {
+      const s = appData.students.find(st => st.id === id);
+      if (!s) return;
+      const msg = `📚 *${appData.config.libName.toUpperCase()}* — Fee Reminder 📚\n\nNamaste ${s.name} ji,\n\nAapka library seat subscription renew hone ka samay aa gaya hai:\n\n💺 *Seat Number:* #${s.seat}\n⏰ *Shift:* ${s.shift}\n📅 *Due Date:* ${s.validityDate}\n💰 *Amount:* ₹${s.fee}\n\nKripya time par payment karke apni seat confirm rakhein.\n*UPI ID:* ${appData.config.upi}\n\nDhanyawad,\nManagement: ${appData.config.phone}`;
+      window.open(`https://wa.me/91${s.phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    function sendWhatsAppSlip(id) {
+      const s = appData.students.find(st => st.id === id);
+      if (!s) return;
+      const msg = `✅ *${appData.config.libName.toUpperCase()}* — Seat Confirmation ✅\n\nNamaste ${s.name},\nAapka admission confirm ho gaya hai:\n\n💺 *Cabin Seat:* Seat #${s.seat}\n⏰ *Shift:* ${s.shift}\n📅 *Valid Upto:* ${s.validityDate}\n💵 *Fee Paid:* ₹${s.fee}\n\nRules: Maintain pin-drop silence & keep space neat.\nHelpdesk: ${appData.config.phone}`;
+      window.open(`https://wa.me/91${s.phone}?text=${encodeURIComponent(msg)}`, '_blank');
+    }
+
+    
+    // ==================== COLLECT DUE / EDIT PAYMENT CONTROLS ====================
+    let currentDueStudent = null;
+
+    function openCollectDueModal(id) {
+      const s = appData.students.find(st => st.id === id);
+      if (!s) return;
+      currentDueStudent = s;
+
+      document.getElementById('dueModalStudentId').value = s.id;
+      document.getElementById('dueModalStudentName').innerText = `${s.name} (Seat #${s.seat} - ${s.shift})`;
+      
+      const fee = Number(s.fee) || 0;
+      const paid = Number(s.paid) || 0;
+      const due = Math.max(0, fee - paid);
+
+      document.getElementById('dueModalTotalFeeDisplay').innerText = '₹' + fee;
+      document.getElementById('dueModalPaidDisplay').innerText = '₹' + paid;
+      document.getElementById('dueModalDueDisplay').innerText = '₹' + due;
+
+      document.getElementById('dueModalEditFee').value = fee;
+      document.getElementById('dueModalNowPaying').value = due > 0 ? due : '';
+      document.getElementById('modalCollectDue').classList.remove('hidden');
+    }
+
+    function closeCollectDueModal() {
+      document.getElementById('modalCollectDue').classList.add('hidden');
+      currentDueStudent = null;
+    }
+
+    function calculateDueModalPending() {
+      if (!currentDueStudent) return;
+      const editedFee = Number(document.getElementById('dueModalEditFee').value) || 0;
+      const paid = Number(currentDueStudent.paid) || 0;
+      const newDue = Math.max(0, editedFee - paid);
+      document.getElementById('dueModalTotalFeeDisplay').innerText = '₹' + editedFee;
+      document.getElementById('dueModalDueDisplay').innerText = '₹' + newDue;
+      if (document.getElementById('dueModalNowPaying').value === '' || Number(document.getElementById('dueModalNowPaying').value) > newDue) {
+        document.getElementById('dueModalNowPaying').value = newDue > 0 ? newDue : '';
+      }
+    }
+
+    function submitCollectDue() {
+      const id = Number(document.getElementById('dueModalStudentId').value);
+      const s = appData.students.find(st => st.id === id);
+      if (!s) return;
+
+      const editedFee = Number(document.getElementById('dueModalEditFee').value) || s.fee;
+      const nowPaying = Number(document.getElementById('dueModalNowPaying.value')) || Number(document.getElementById('dueModalNowPaying').value) || 0;
+      const mode = document.getElementById('dueModalPayMode').value;
+
+      s.fee = editedFee;
+      s.paid = (Number(s.paid) || 0) + nowPaying;
+
+      const now = new Date();
+      const todayFormatted = `${getTodayYMD()} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+
+      if (nowPaying > 0) {
+        appData.ledger.push({
+          id: Date.now(),
+          date: todayFormatted,
+          student: s.name,
+          details: `Due Payment: Seat #${s.seat} (Paid ₹${nowPaying})`,
+          mode: mode,
+          amount: nowPaying
+        });
+      }
+
+      persistData();
+      closeCollectDueModal();
+
+      postToSheet({
+        action: "COLLECT_DUE",
+        studentId: s.id,
+        studentName: s.name,
+        seat: s.seat,
+        paidAmount: nowPaying,
+        newTotalFee: editedFee,
+        mode: mode,
+        dateStr: todayFormatted
+      });
+
+      alert(`Payment Saved! Abhi ₹${nowPaying} jama ho gaya. Kul Paid: ₹${s.paid} / ₹${s.fee}`);
+    }
+
+    window.addEventListener('DOMContentLoaded', loadSavedData);
+  </script>
+</body>
+</html>
